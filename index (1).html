@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pick 6 2026</title>
+<style>
+:root{
+  --bg:#f3f4f5;--panel:#ffffff;--panel2:#eceff1;--line:#d4d9dd;--hover:#e3e8ec;
+  --ink:#15191c;--ink2:#4c5860;--ink3:#7c8890;
+  --val:#23793a;--bad:#a33a3a;--accent:#2f6f93;--accentink:#ffffff;
+  --pickbg:#fbe7b5;--pickline:#c9922e;--pickink:#4a3408;
+  --winbg:#cfe9d5;--winline:#3f7d4f;--lossbg:#f3d2d2;--lossline:#a34545;
+  --tagbg:#e3e8ec;--tagink:#3a454c;--keybg:#f8e6bb;--keyink:#6b4b0c;--warnbg:#f6d6d6;--warnink:#8a2c2c;
+  --editline:#c9922e;
+  --font:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#141719;--panel:#1c2023;--panel2:#23282c;--line:#31383d;--hover:#2a3035;
+    --ink:#e8eaeb;--ink2:#9aa4ab;--ink3:#6d777e;
+    --val:#7fc08e;--bad:#d99b9b;--accent:#2f5c74;--accentink:#ffffff;
+    --pickbg:#3d3218;--pickline:#c9922e;--pickink:#f3dca6;
+    --winbg:#23402b;--winline:#3f7d4f;--lossbg:#472424;--lossline:#8a3d3d;
+    --tagbg:#2c3439;--tagink:#c2cbd1;--keybg:#3d3320;--keyink:#e6c377;--warnbg:#3a2626;--warnink:#e0a0a0;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#141719;--panel:#1c2023;--panel2:#23282c;--line:#31383d;--hover:#2a3035;
+  --ink:#e8eaeb;--ink2:#9aa4ab;--ink3:#6d777e;
+  --val:#7fc08e;--bad:#d99b9b;--accent:#2f5c74;--accentink:#ffffff;
+  --pickbg:#3d3218;--pickline:#c9922e;--pickink:#f3dca6;
+  --winbg:#23402b;--winline:#3f7d4f;--lossbg:#472424;--lossline:#8a3d3d;
+  --tagbg:#2c3439;--tagink:#c2cbd1;--keybg:#3d3320;--keyink:#e6c377;--warnbg:#3a2626;--warnink:#e0a0a0;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:14px}
+body{padding:10px 10px 40px;max-width:760px;margin:0 auto}
+h1{font-size:16px;font-weight:700;margin:0}
+button{font-family:inherit;font-size:13px;color:var(--ink);background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:6px 10px;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--accentink)}
+input,select{font-family:inherit;font-size:14px;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:5px 6px}
+.bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.spacer{flex:1}
+#status{display:block;font-size:11px;color:var(--ink2);font-family:var(--mono);margin-bottom:8px}
+.score{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px}
+.chip{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:11px;color:var(--ink2)}
+.chip b{display:block;font-family:var(--mono);font-size:16px;color:var(--ink)}
+.chip.hot{border-color:var(--pickline)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:10px}
+.card h2{font-size:12px;margin:0 0 8px;font-weight:700;color:var(--ink2);letter-spacing:.02em}
+/* ---- game card ---- */
+.game{border-bottom:1px solid var(--line);padding:8px 0}
+.game:last-child{border-bottom:0}
+.main{display:grid;grid-template-columns:1fr 64px 1fr 34px;gap:6px;align-items:center}
+.side{width:100%;text-align:center;padding:9px 4px;font-size:15px;min-height:44px}
+.side .nm{font-weight:500}
+.side.home .nm{font-weight:800;text-decoration:underline;text-underline-offset:3px}
+.side .ats{display:block;font-family:var(--mono);font-size:9px;color:var(--ink3);margin-top:1px}
+.side.picked{background:var(--pickbg);border-color:var(--pickline);color:var(--pickink);border-width:2px}
+.side.W{background:var(--winbg);border-color:var(--winline)}
+.side.L{background:var(--lossbg);border-color:var(--lossline)}
+.pl{width:100%;text-align:center;font-family:var(--mono);font-size:16px;padding:8px 2px}
+.pl.warn{border-color:var(--bad)}
+.flip{padding:8px 0;font-size:13px;width:100%}
+.sub{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:6px;font-size:12px;color:var(--ink2)}
+.sub .when{font-family:var(--mono);font-size:11px;color:var(--ink3)}
+.mk{display:inline-flex;align-items:center;gap:4px}
+.mk input{width:58px;font-family:var(--mono);font-size:13px;padding:3px 4px;text-align:center}
+.mk input.edited{border-color:var(--editline);border-width:2px}
+.v{color:var(--val);font-family:var(--mono);font-weight:600}
+.n{color:var(--ink3);font-family:var(--mono)}
+.tag{display:inline-block;font-size:10px;font-family:var(--mono);padding:1px 5px;border-radius:4px;background:var(--tagbg);color:var(--tagink)}
+.tag.key{background:var(--keybg);color:var(--keyink)}
+.tag.warn{background:var(--warnbg);color:var(--warnink)}
+.fin{font-family:var(--mono);font-size:11px}
+/* ---- ranking / season tables ---- */
+table.b{width:100%;border-collapse:collapse;font-size:13px}
+table.b th{text-align:left;font-size:10px;color:var(--ink3);font-weight:500;padding:3px 5px;border-bottom:1px solid var(--line)}
+table.b td{padding:7px 5px;border-bottom:1px solid var(--line);vertical-align:middle}
+tr.rank{cursor:pointer}
+tr.rank:active td,tr.rank:hover td{background:var(--hover)}
+.legend{font-size:11px;color:var(--ink3);margin-top:8px;line-height:1.55}
+.legend b{color:var(--ink2)}
+textarea{width:100%;height:110px;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:6px;font-family:var(--mono);font-size:12px;padding:6px;margin-top:6px}
+details{margin-bottom:10px}
+details summary{cursor:pointer;font-size:13px;color:var(--ink2);padding:6px 0}
+.spots{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.sp{font-size:11px;padding:2px 6px;border-radius:4px;background:var(--tagbg);color:var(--tagink)}
+.sp.neg{background:var(--warnbg);color:var(--warnink)}
+.sp.pos{background:var(--winbg);color:var(--ink)}
+.sp.inj{background:var(--keybg);color:var(--keyink)}
+details.mu{margin:6px 0 0}
+details.mu summary{font-size:12px;padding:2px 0}
+table.mt{width:100%;border-collapse:collapse;font-size:12px;margin-top:4px}
+table.mt td,table.mt th{padding:4px;border-bottom:1px solid var(--line);text-align:left}
+table.mt th{font-size:10px;color:var(--ink3);font-weight:500}
+.note{width:100%;font-size:12px;padding:4px 6px;margin-top:4px}
+.pc{font-size:11px;line-height:1.5;color:var(--ink2)}
+.pc .p{color:var(--val)} .pc .c{color:var(--bad)}
+#toast{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--accent);color:var(--accentink);font-size:13px;padding:8px 14px;border-radius:8px;z-index:99;display:none;max-width:90vw}
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <h1>Pick 6</h1>
+  <select id="wk" aria-label="Week"></select>
+  <span class="spacer"></span>
+  <select id="names" aria-label="Team labels"><option value="pool">Pool labels</option><option value="nick">Nicknames</option></select>
+  <button id="btnRefresh" class="primary">Refresh</button>
+</div>
+<span id="status"></span>
+
+<div class="score" id="score"></div>
+
+<div class="card">
+  <h2>BEST VALUE THIS WEEK</h2>
+  <table class="b" id="rank"></table>
+  <div class="legend">Tap a row to pick it. "Getting" is how many points better the pool's number is than the market. <span class="tag key">3</span> means that gap crosses a key number, which is worth far more than a normal half point.
+    Green + and red − are schedule spots for and against your side. Notes below them are plain context, counted neither way, because a note can help either team.</div>
+</div>
+
+<div class="card">
+  <h2>BOARD</h2>
+  <div id="board"></div>
+  <div class="legend">
+    Same layout as the pool: favourite left, underdog right, home team <b style="text-decoration:underline">bold and underlined</b>, pool's number in the middle.
+    Tap a team to pick it.
+    <b>Mkt</b> is what the favourite on the left is giving at the sportsbooks. Type over it with Sunday's number and everything reprices. Edited numbers get an orange border. Clear the box to go back to the saved number.
+    <b>Est</b> is the approximate cover chance on the value side, from historical margin frequencies.
+  </div>
+</div>
+
+<div class="card">
+  <h2>SEASON</h2>
+  <table class="b" id="season"></table>
+  <div class="legend">Graded against the pool's lines. Quarters: 1–4, 5–9, 10–13, 14–18.</div>
+</div>
+
+<div class="card">
+  <h2>SPOT TRACKER</h2>
+  <table class="b" id="tracker"></table>
+  <div class="legend">Every flagged spot, logged against how that team actually did versus the pool's line. Fills in as weeks are graded. Don't lean on any row until it has 40+ games. Before that it's noise.</div>
+</div>
+
+<details>
+  <summary>Paste a pool board</summary>
+  <p class="legend" style="margin-top:0">Copy the week's board text from the pool and paste it here. It reads two teams and a half-point number per game, left team as favourite.</p>
+  <textarea id="paste" placeholder="Paste board text here"></textarea>
+  <button id="btnParse">Read lines</button>
+  <div id="parseOut" class="legend"></div>
+</details>
+
+<div class="card">
+  <h2>SCRATCHPAD (DOESN'T FEED THE MATH)</h2>
+  <textarea id="scratch" style="height:80px" placeholder="Injury news, angles to test."></textarea>
+</div>
+
+<details>
+  <summary>Save, load, reset</summary>
+  <p class="legend" style="margin-top:0">Saves automatically on this device. Use the box to move your picks to another device.</p>
+  <button id="btnExport">Copy state to box</button>
+  <button id="btnImport">Load state from box</button>
+  <button id="btnClearWeek">Clear this week's picks</button>
+  <textarea id="io"></textarea>
+</details>
+
+<div id="toast"></div>
+
+<script>
+"use strict";
+/*PURE-START*/
+const WEEKS = 18;
+const SD_BASE = 13.0;
+const KEYW = {0:0.06,1:0.925,2:0.815,3:3.414,4:1.196,5:0.854,6:1.501,7:2.19,8:1.199,10:1.734,11:0.909,13:0.844,14:1.615,17:1.329,21:1.251};
+const KEYS = [3,4,6,7,8,10,14];   // 8 = one score vs two scores
+const _pmfCache = {};
+// Blowout-likely games scatter wider, so a point of line value buys less there.
+function sdFor(line){ return SD_BASE + 0.05*Math.abs(line||0); }
+function pmf(mu, sd){
+  const key = mu.toFixed(2)+"|"+sd.toFixed(2);
+  if(_pmfCache[key]) return _pmfCache[key];
+  const p = []; let t = 0;
+  for(let k=-60;k<=60;k++){ const b = Math.exp(-((k-mu)**2)/(2*sd*sd)) * (KEYW[Math.abs(k)] ?? 1); p.push([k,b]); t += b; }
+  p.forEach(x=>x[1]/=t);
+  return _pmfCache[key] = p;
+}
+function pcMid(mu, homeLine, sd){
+  let s = 0;
+  for(const [k,p] of pmf(mu, sd)){ const v = k + homeLine; if(v > 1e-9) s += p; else if(Math.abs(v) < 1e-9) s += p/2; }
+  return s;
+}
+function estHome(marketHome, poolHome){ const mu = -marketHome, sd = sdFor(marketHome); return 0.5 + pcMid(mu, poolHome, sd) - pcMid(mu, marketHome, sd); }
+function poolHomeLine(line, g){
+  if(!line || line.pts === "" || line.pts === null || line.pts === undefined || isNaN(line.pts)) return null;
+  const pts = Math.abs(Number(line.pts));
+  return line.fav === g.home ? -pts : pts;
+}
+function keysBetween(a, b){
+  if(a === b) return [];
+  const lo = Math.ceil(Math.min(-a,-b)), hi = Math.floor(Math.max(-a,-b));
+  const out = new Set();
+  for(let m=lo;m<=hi;m++) if(KEYS.includes(Math.abs(m))) out.add(Math.abs(m));
+  return [...out].sort((x,y)=>x-y);
+}
+function grade(g, poolHome){
+  if(!g.completed || poolHome === null) return null;
+  const v = (g.homeScore - g.awayScore) + poolHome;
+  if(Math.abs(v) < 1e-9) return "P";
+  return v > 0 ? "home" : "away";
+}
+function quarterOf(w){ return w<=4?1:w<=9?2:w<=13?3:4; }
+
+// one code per team no matter which feed it came from
+const CANON = {LA:"LAR",JAC:"JAX",WAS:"WSH"};
+function canon(ab){ return CANON[ab] || ab; }
+const TEAMS = {ARI:["Cardinals","Arizona Cardinals","Ari"],ATL:["Falcons","Atlanta Falcons","Atl"],BAL:["Ravens","Baltimore Ravens","Bal"],
+ BUF:["Bills","Buffalo Bills","Buf"],CAR:["Panthers","Carolina Panthers","Car"],CHI:["Bears","Chicago Bears","Chi"],CIN:["Bengals","Cincinnati Bengals","Cin"],
+ CLE:["Browns","Cleveland Browns","Cle"],DAL:["Cowboys","Dallas Cowboys","Dal"],DEN:["Broncos","Denver Broncos","Den"],DET:["Lions","Detroit Lions","Det"],
+ GB:["Packers","Green Bay Packers","GB"],HOU:["Texans","Houston Texans","Hou"],IND:["Colts","Indianapolis Colts","Ind"],JAX:["Jaguars","Jacksonville Jaguars","JAX"],
+ KC:["Chiefs","Kansas City Chiefs","KC"],LAC:["Chargers","Los Angeles Chargers","LAC"],LAR:["Rams","Los Angeles Rams","LAR"],LV:["Raiders","Las Vegas Raiders","LV"],
+ MIA:["Dolphins","Miami Dolphins","Mia"],MIN:["Vikings","Minnesota Vikings","Min"],NE:["Patriots","New England Patriots","NE"],NO:["Saints","New Orleans Saints","NO"],
+ NYG:["Giants","New York Giants","NYG"],NYJ:["Jets","New York Jets","NYJ"],PHI:["Eagles","Philadelphia Eagles","Phi"],PIT:["Steelers","Pittsburgh Steelers","Pit"],
+ SEA:["Seahawks","Seattle Seahawks","Sea"],SF:["49ers","San Francisco 49ers","SF"],TB:["Buccaneers","Tampa Bay Buccaneers","TB"],TEN:["Titans","Tennessee Titans","Ten"],
+ WSH:["Commanders","Washington Commanders","Was"]};
+function poolLabel(ab){ const t = TEAMS[canon(ab)]; return t ? t[2] : ab; }
+function gameId(w, away, home){ return `w${w}-${canon(away)}@${canon(home)}`; }
+
+// Week 3 as it stood Tue Sep 22 AM: schedule, and market numbers from bet365 / DraftKings.
+const BAKED = {3:{asOf:"Sat Sep 26 AM (DraftKings)", games:[
+ ["GB","ATL","2026-09-25T00:15:00Z",-4.5,"",14,35],["BUF","LAC","2026-09-27T17:00:00Z",-7],["CLE","CAR","2026-09-27T17:00:00Z",2.5],
+ ["DET","NYJ","2026-09-27T17:00:00Z",-6.5],["IND","HOU","2026-09-27T17:00:00Z",1.5],["JAX","NE","2026-09-27T17:00:00Z",-3],
+ ["MIA","KC","2026-09-27T17:00:00Z",10],["NYG","TEN","2026-09-27T17:00:00Z",-2.5],["PIT","CIN","2026-09-27T17:00:00Z",3.5],
+ ["WSH","SEA","2026-09-27T17:00:00Z",7.5],["SF","ARI","2026-09-27T20:05:00Z",-8.5],["TB","MIN","2026-09-27T20:05:00Z",1.5],
+ ["DAL","BAL","2026-09-27T20:25:00Z",3.5,"Rio"],["NO","LV","2026-09-27T20:25:00Z",-3],["DEN","LAR","2026-09-28T00:20:00Z",2.5],
+ ["CHI","PHI","2026-09-29T00:15:00Z",4.5]]}};
+function bakedWeek(w){
+  const b = BAKED[w]; if(!b) return null;
+  return {asOf:b.asOf, games:b.games.map(([h,a,d,l,site,hs,as_])=>({
+    id:gameId(w,a,h), week:w, date:d, home:h, away:a, site:site||"",
+    completedBaked: hs!==undefined, hs, as_,
+    homeNick:TEAMS[h][0], awayNick:TEAMS[a][0], homeName:TEAMS[h][1], awayName:TEAMS[a][1],
+    homeLine:l, state: hs!==undefined?"post":"pre", completed: hs!==undefined, homeScore: hs||0, awayScore: as_||0 }))};
+}
+
+// Injury / QB notes known when the board was loaded. Editable in the app.
+const NOTES = {3:{
+  BUF:"League-best 38.5 ppg. Allen has 5 pass TD, 4 rush TD, no picks. Off a mini-bye.",
+  LAC:"0-2 at 14 ppg. Herbert pressured on 46% of dropbacks, 2nd-highest in the league. 1 TD and 3 INT on throws of 10+ air yards.",
+  CAR:"Bryce Young 6 TD, 1 INT, 8.9 per attempt. Run defense has allowed a league-worst 448 rushing yards.",
+  CLE:"Judkins held to 54 yards on 24 carries, and Carolina's run D is the one place to attack. Watson's first competent game in two years last week.",
+  DET:"Scoring 30+ every week but allowing 35.5 ppg, 31st. Failed to cover 5 of the last 6. Three extra days of rest.",
+  NYJ:"Geno at 70.8% with no picks. Run defense 2nd best at 65.5 ypg, but hasn't faced a back like Gibbs yet.",
+  HOU:"WR Nico Collins (Grade 1 hamstring) not expected to play. Stroud leads the league in attempts behind a struggling line.",
+  IND:"WR Alec Pierce out 4-6 weeks (heel). Jones was sharp on play action in KC. Books split: HOU -1.5 to -2.5.",
+  NE:"A.J. Brown out (ankle). Maye has 1 TD and 4 INT. Books split: JAX -2.5 to -3, so your +3.5 is worth 54% to 58%.",
+  JAX:"Blew a 13-3 second-half lead in Denver. Lawrence 4 TD at 8.3 per attempt.",
+  KC:"Mahomes threw for 382 vs Indy. KC has never covered as a double-digit road favourite since 1970 (0-10-1). Books split -10.5 to -11.5, so your +11.5 is worth 50% to 54%.",
+  MIA:"Willis completing 58%. Worst point differential in the AFC, 26 for and 62 against.",
+  NYG:"Dart out for the season (knee surgery). Winston starts after going 11 of 27 for 111 in relief. Nabers dislocated a shoulder and was limited Wednesday.",
+  TEN:"Ward has no interceptions on the year and pushed Philadelphia four quarters. Daboll faces the team that fired him.",
+  CIN:"Rebuilt defense won at Houston by 14. Burrow hit all three deep shots to Chase for 2 TD.",
+  PIT:"Rodgers has 1 or fewer passing TD in five straight starts. Run game managed 91 yards on 23 carries.",
+  SEA:"17 points allowed in two games, fewest since 2013. Won 15 of last 16 road games. Darnold practising, and Lock has 4 TD and 0 INT anyway. Books split SEA -7 to -7.5.",
+  WSH:"Daniels out, dislocated elbow. Mariota starts having lost 6 of his last 7 starts.",
+  SF:"Purdy completing 80.4% with 5 TD. Won the first two by a combined 42. Books split SF -7.5 to -8.5.",
+  ARI:"Brissett at 5.7 per attempt. Harrison Jr. had no catches in Week 2. CB Will Johnson out for the season.",
+  MIN:"Kyler Murray reported cleared from concussion protocol and starting over Wentz. RB Jordan Mason on IR.",
+  TB:"Mayfield at 6.4 per attempt with 1 TD, 1 INT and 3 fumbles. Flores pressure is a bad matchup for him.",
+  BAL:"WR Zay Flowers (hamstring) did not practise Wednesday, and he is the swing factor in this number.",
+  DAL:"Prescott at 73.8% with 6 TD. Defense still not trustworthy. Nominal home team but this is neutral in Rio.",
+  LV:"Cousins has 6 TD. Brock Bowers likely debuts with no snap count. Both wins came against Miami and the Chargers. Books split NO -3 to -3.5, so your +3.5 is worth 50% to 54%.",
+  NO:"Shough leads the league with 662 passing yards. Beat Baltimore last week. Home opener.",
+  LAR:"Stafford threw 4 TD Monday night. Nacua expected to play. Market is -2.5 at all three books, so your -1.5 is solid.",
+  DEN:"Nix has 2 INT and 3 fumbles but went 16 of 17 against four-man rushes. Denver has won its last nine against NFC teams.",
+  PHI:"Goedert out a few weeks (MCL). Barkley left with a stinger awaiting an MRI. Books split PHI -4.5 to -5.5, so your -3.5 is worth 53% to 58%.",
+  CHI:"Williams out (hamstring), Bagent in concussion protocol. Case Keenum in line to start. Chicago has lost 18 straight to NFC teams arriving on a winning streak."}};
+// the pool's own Week 3 board, favourite first
+const SEED = {3:`GB 6.5 Atl
+Buf 7.5 LAC
+Car 2.5 Cle
+Det 6.5 NYJ
+Hou 2.5 Ind
+JAX 3.5 NE
+KC 11.5 Mia
+NYG 3.5 Ten
+Cin 3.5 Pit
+Sea 7.5 Was
+SF 8.5 Ari
+Min 1.5 TB
+Bal 3.5 Dal
+NO 3.5 LV
+LAR 1.5 Den
+Phi 3.5 Chi`};
+
+
+// ---------- history, geography, spots ----------
+// Completed games: [week, away, home, awayScore, homeScore, dateET, site] (site "" = home stadium)
+const HIST = [
+ [1,"NE","SEA",10,13,"2026-09-09",""],[1,"SF","LAR",27,7,"2026-09-10","Melbourne"],[1,"NYJ","TEN",23,10,"2026-09-13",""],
+ [1,"BUF","HOU",36,31,"2026-09-13",""],[1,"CHI","CAR",59,37,"2026-09-13",""],[1,"CLE","JAX",10,34,"2026-09-13",""],
+ [1,"ATL","PIT",13,20,"2026-09-13",""],[1,"BAL","IND",41,23,"2026-09-13",""],[1,"TB","CIN",27,33,"2026-09-13",""],
+ [1,"NO","DET",30,31,"2026-09-13",""],[1,"MIA","LV",13,27,"2026-09-13",""],[1,"ARI","LAC",26,14,"2026-09-13",""],
+ [1,"GB","MIN",22,39,"2026-09-13",""],[1,"WSH","PHI",22,24,"2026-09-13",""],[1,"DAL","NYG",20,28,"2026-09-13",""],
+ [1,"DEN","KC",10,31,"2026-09-14",""],
+ [2,"DET","BUF",31,41,"2026-09-17",""],[2,"PHI","TEN",24,20,"2026-09-20",""],[2,"PIT","NE",3,20,"2026-09-20",""],
+ [2,"MIN","CHI",9,3,"2026-09-20",""],[2,"CAR","ATL",34,3,"2026-09-20",""],[2,"GB","NYJ",20,17,"2026-09-20",""],
+ [2,"NO","BAL",24,17,"2026-09-20",""],[2,"CIN","HOU",20,6,"2026-09-20",""],[2,"CLE","TB",23,19,"2026-09-20",""],
+ [2,"JAX","DEN",13,20,"2026-09-20",""],[2,"LV","LAC",26,14,"2026-09-20",""],[2,"SEA","ARI",31,7,"2026-09-20",""],
+ [2,"MIA","SF",13,35,"2026-09-20",""],[2,"WSH","DAL",20,37,"2026-09-20",""],[2,"IND","KC",30,33,"2026-09-20",""],
+ [2,"NYG","LAR",6,28,"2026-09-21",""]];
+// Home time zone, hours behind ET (ARI does not observe DST, so it matches Pacific in the fall)
+const TZ = {SEA:3,SF:3,LAR:3,LAC:3,LV:3,ARI:3,DEN:2,KC:1,CHI:1,GB:1,MIN:1,DAL:1,HOU:1,NO:1,TEN:1};
+function tz(t){ return TZ[canon(t)] || 0; }
+const DIV = {BUF:"AE",MIA:"AE",NE:"AE",NYJ:"AE",BAL:"AN",CIN:"AN",CLE:"AN",PIT:"AN",HOU:"AS",IND:"AS",JAX:"AS",TEN:"AS",
+ DEN:"AW",KC:"AW",LV:"AW",LAC:"AW",DAL:"NE",NYG:"NE",PHI:"NE",WSH:"NE",CHI:"NN",DET:"NN",GB:"NN",MIN:"NN",
+ ATL:"NS",CAR:"NS",NO:"NS",TB:"NS",ARI:"NW",LAR:"NW",SF:"NW",SEA:"NW"};
+function etDate(iso){ // calendar date in US Eastern for a UTC timestamp (EDT season, UTC-4)
+  if(/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
+  const d = new Date(new Date(iso).getTime() - 4*3600000); return d.toISOString().slice(0,10);
+}
+function dayDiff(a,b){ return Math.round((Date.parse(b)-Date.parse(a))/86400000); }
+// Build every team's game log from history + whatever weeks are loaded.
+function teamLogs(extraGames){
+  const all = HIST.map(([w,a,hm,as,hs,d,site])=>({week:w,away:a,home:hm,awayScore:as,homeScore:hs,date:d,site,completed:true}));
+  const seen = new Set(all.map(g=>g.week+"|"+g.away+"|"+g.home));
+  (extraGames||[]).forEach(g=>{ const k = g.week+"|"+g.away+"|"+g.home; if(seen.has(k)) return; seen.add(k);
+    all.push({week:g.week,away:g.away,home:g.home,awayScore:g.awayScore,homeScore:g.homeScore,date:etDate(g.date),kick:g.date,site:g.site||"",completed:!!g.completed}); });
+  const logs = {};
+  all.forEach(g=>{ [g.away,g.home].forEach(t=>{ (logs[t]=logs[t]||[]).push(g); }); });
+  for(const t in logs) logs[t].sort((x,y)=> x.date<y.date?-1:x.date>y.date?1:0);
+  return logs;
+}
+function travelled(g, t){ return g.away===t || !!g.site; } // road game, or a neutral site abroad
+function siteTz(g){ return g.site ? null : tz(g.home); }
+// Spots for team t in week w. pol: -1 hurts t, +1 helps t, 0 context only.
+function spotsFor(t, w, logs){
+  const log = logs[t]||[], i = log.findIndex(g=>g.week===w); if(i<0) return [];
+  const g = log[i], prev = log[i-1], opp = g.home===t?g.away:g.home;
+  const olog = logs[opp]||[], oi = olog.findIndex(x=>x.week===w), oprev = olog[oi-1];
+  const out = [];
+  let streak = 0; for(let j=i;j>=0 && travelled(log[j],t);j--) streak++;
+  if(streak>=3) out.push({id:"road3",t:`${streak}th straight away`.replace("3th","3rd"),pol:-1});
+  else if(streak===2) out.push({id:"road2",t:"2nd straight away",pol:-1});
+  const rest = prev ? dayDiff(prev.date, g.date) : null, orest = oprev ? dayDiff(oprev.date, g.date) : null;
+  if(rest!==null && rest<=5) out.push({id:"short",t:`short week (${rest}d)`,pol:-1});
+  if(rest!==null && orest!==null && rest-orest>=3) out.push({id:"restEdge",t:`+${rest-orest} days rest`,pol:+1});
+  const st = siteTz(g);
+  if(st!==null && tz(t)-st>=3 && g.kick && new Date(g.kick).getUTCHours()===17) out.push({id:"bodyClock",t:"10 AM body clock",pol:-1});
+  if(st!==null && Math.abs(tz(t)-st)>=3 && g.away===t) out.push({id:"xc",t:"cross-country trip",pol:-1});
+  if(prev && rest!==null && rest<=6 && (prev.site || Math.abs(tz(t)-(siteTz(prev)??tz(t)))>=3) && travelled(prev,t))
+    out.push({id:"postTrip",t:"short week after long trip",pol:-1});
+  if(prev && prev.site) out.push({id:"offIntl",t:`first game back from ${prev.site}`,pol:-1});
+  if(g.site) out.push({id:"intl",t:`neutral site: ${g.site}`,pol:0});
+  if(DIV[canon(t)] && DIV[canon(t)]===DIV[canon(opp)]) out.push({id:"div",t:"division game",pol:0});
+  return out;
+}
+// Points for / against per game before week w, with league ranks (1 = best).
+function formTable(w, logs){
+  const rows = {};
+  for(const t in logs){ let pf=0,pa=0,n=0,W=0,L=0;
+    logs[t].forEach(g=>{ if(!g.completed || g.week>=w) return; const home=g.home===t;
+      const f = home?g.homeScore:g.awayScore, a = home?g.awayScore:g.homeScore; pf+=f; pa+=a; n++; if(f>a) W++; else if(f<a) L++; });
+    rows[t] = {pf:n?pf/n:0, pa:n?pa/n:0, n, W, L}; }
+  const ts = Object.keys(rows);
+  [...ts].sort((a,b)=>rows[b].pf-rows[a].pf).forEach((t,i)=>rows[t].oRank=i+1);
+  [...ts].sort((a,b)=>rows[a].pa-rows[b].pa).forEach((t,i)=>rows[t].dRank=i+1);
+  return rows;
+}
+
+// ---- paste parser ----
+const ALIASES = {"niners":"SF","bucs":"TB","pats":"NE","jags":"JAX","commies":"WSH"};
+function esc(s){ return s.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"); }
+function buildMatcher(games){
+  const pats = [];
+  games.forEach(g=>{
+    [g.home,g.away].forEach(ab=>{
+      const t = TEAMS[canon(ab)] || [ab,ab,ab];
+      pats.push({re:new RegExp("\\b"+esc(t[1])+"\\b","i"),t:ab,len:t[1].length});
+      pats.push({re:new RegExp("\\b"+esc(t[0])+"\\b","i"),t:ab,len:t[0].length});
+      pats.push({re:new RegExp("\\b"+esc(ab)+"\\b"),t:ab,len:ab.length});
+      if(t[2] !== ab) pats.push({re:new RegExp("\\b"+esc(t[2])+"\\b"),t:ab,len:t[2].length});
+    });
+  });
+  const onBoard = new Set(games.flatMap(g=>[g.home,g.away]));
+  for(const a in ALIASES){ if(onBoard.has(ALIASES[a])) pats.push({re:new RegExp("\\b"+esc(a)+"\\b","i"),t:ALIASES[a],len:a.length}); }
+  return pats;
+}
+function tokenize(text, games){
+  const pats = buildMatcher(games), toks = [], taken = new Array(text.length).fill(false), hits = [];
+  pats.forEach(p=>{
+    const re = new RegExp(p.re.source, p.re.flags+"g");
+    let m; while((m = re.exec(text))) hits.push({i:m.index,end:m.index+m[0].length,t:p.t,len:m[0].length});
+  });
+  hits.sort((a,b)=> a.i-b.i || b.len-a.len);
+  hits.forEach(h=>{
+    for(let j=h.i;j<h.end;j++) if(taken[j]) return;
+    for(let j=h.i;j<h.end;j++) taken[j]=true;
+    toks.push({i:h.i,type:"team",t:h.t});
+  });
+  const numRe = /(\d{1,2}\.5)/g; let m;
+  while((m = numRe.exec(text))){ if(!taken[m.index]) toks.push({i:m.index,type:"num",v:Number(m[1])}); }
+  toks.sort((a,b)=>a.i-b.i);
+  return toks;
+}
+function parseBoard(text, games){
+  const toks = tokenize(text, games), pairOf = {}, found = {};
+  games.forEach(g=>{ pairOf[g.home+"|"+g.away]=g; pairOf[g.away+"|"+g.home]=g; });
+  let pending = null, pendingIx = -1;
+  for(let i=0;i<toks.length;i++){
+    const tk = toks[i]; if(tk.type !== "team") continue;
+    if(pending && pending.t !== tk.t && pairOf[pending.t+"|"+tk.t]){
+      const g = pairOf[pending.t+"|"+tk.t]; let num = null;
+      for(let j=pendingIx+1;j<i;j++) if(toks[j].type==="num"){ num = toks[j].v; break; }
+      if(num === null) for(let j=i+1;j<toks.length && toks[j].type!=="team";j++) if(toks[j].type==="num"){ num = toks[j].v; break; }
+      if(num !== null && !found[g.id]) found[g.id] = {fav:pending.t, pts:num};
+      pending = null; pendingIx = -1;
+    } else { pending = tk; pendingIx = i; }
+  }
+  return found;
+}
+/*PURE-END*/
+
+/* ============ storage ============ */
+const Store = {
+  async get(k){
+    try{ if(window.storage){ const r = await window.storage.get(k); return r?JSON.parse(r.value):null; } }catch(e){}
+    try{ const v = localStorage.getItem(k); return v?JSON.parse(v):null; }catch(e){ return null; }
+  },
+  async set(k,v){
+    const s = JSON.stringify(v);
+    try{ if(window.storage){ await window.storage.set(k,s); return true; } }catch(e){}
+    try{ localStorage.setItem(k,s); return true; }catch(e){ return false; }
+  }
+};
+
+/* ============ state ============ */
+let state = { week:3, weeks:{}, scratch:"", names:"pool", seeded:{} };
+let cache = {};   // week -> {asOf, live, games}
+const W = w => { const s = (state.weeks[w] = state.weeks[w] || {}); s.lines=s.lines||{}; s.picks=s.picks||{}; s.results=s.results||{}; s.mkt=s.mkt||{}; s.notes=s.notes||{}; return s; };
+
+/* ============ ESPN (works when opened from a computer; blocked on hosted pages) ============ */
+const BASE = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard";
+async function fetchWeek(w){
+  const r = await fetch(`${BASE}?dates=2026&seasontype=2&week=${w}`,{cache:"no-store"});
+  if(!r.ok) throw new Error("HTTP "+r.status);
+  const j = await r.json();
+  return (j.events||[]).map(e=>norm(e,w)).filter(Boolean);
+}
+function norm(ev,w){
+  const c = ev.competitions && ev.competitions[0]; if(!c) return null;
+  const h = c.competitors.find(x=>x.homeAway==="home"), a = c.competitors.find(x=>x.homeAway==="away");
+  if(!h||!a) return null;
+  const H = canon(h.team.abbreviation), A = canon(a.team.abbreviation);
+  let homeLine = null; const o = c.odds && c.odds[0];
+  if(o && typeof o.spread === "number"){
+    let s = o.spread;
+    if(o.homeTeamOdds && o.homeTeamOdds.favorite === true && s > 0) s = -Math.abs(s);
+    if(o.awayTeamOdds && o.awayTeamOdds.favorite === true && s < 0) s = Math.abs(s);
+    homeLine = s;
+  }
+  const st = (c.status && c.status.type) || {};
+  const ad = (c.venue && c.venue.address) || {};
+  const site = ad.country && !/^(USA|United States)$/i.test(ad.country) ? (ad.city || ad.country) : "";
+  return { id:gameId(w,A,H), week:w, date:c.date||ev.date, home:H, away:A, site,
+    homeNick:(TEAMS[H]||[])[0]||h.team.name, awayNick:(TEAMS[A]||[])[0]||a.team.name,
+    homeName:h.team.displayName, awayName:a.team.displayName,
+    homeLine, state:st.state||"pre", completed:!!st.completed,
+    homeScore:Number(h.score||0), awayScore:Number(a.score||0) };
+}
+function ensureWeek(w){
+  if(!cache[w]){ const b = bakedWeek(w); if(b) cache[w] = {asOf:b.asOf, live:false, games:b.games}; }
+  applySeed(w); regrade(w);
+}
+async function refresh(){
+  const w = state.week;
+  ensureWeek(w); render();
+  setStatus("checking ESPN…");
+  try{
+    const games = await fetchWeek(w);
+    if(!games.length) throw new Error("empty");
+    // keep a baked market number if ESPN has none for a game
+    // merge game by game: live data wins, anything the feed didn't return is kept
+    const merged = cache[w] ? Object.fromEntries(cache[w].games.map(g=>[g.id,g])) : {};
+    games.forEach(g=>{ const old = merged[g.id]; if(g.homeLine===null && old) g.homeLine = old.homeLine; merged[g.id] = g; });
+    cache[w] = {asOf:new Date().toLocaleString(), live:true, games:Object.values(merged)};
+    applySeed(w); regrade(w);
+    await Store.set("p6.cache",cache); save();
+  }catch(e){ /* offline or blocked: keep what we have */ }
+  statusLine(); render();
+}
+function statusLine(){
+  const c = cache[state.week];
+  if(!c){ setStatus(`Week ${state.week}: no games saved yet.`); return; }
+  setStatus(c.live ? `Live market via ESPN · ${c.asOf}` : `Market as of ${c.asOf}. Type over any Mkt number to update it.`);
+}
+function setStatus(s){ document.getElementById("status").textContent = s; }
+
+/* ============ seed + grading ============ */
+function applySeed(w){
+  if(!SEED[w] || state.seeded[w]) return;
+  const c = cache[w]; if(!c) return;
+  const s = W(w);
+  if(!Object.keys(s.lines).length){ const f = parseBoard(SEED[w], c.games); for(const id in f) s.lines[id] = f[id]; }
+  state.seeded[w] = true; save();
+}
+function regrade(w){
+  const c = cache[w]; if(!c) return;
+  const s = W(w); s.results = {};
+  c.games.forEach(g=>{
+    const r = grade(g, poolHomeLine(s.lines[g.id], g));
+    if(r) s.results[g.id] = {cover: r==="home"?g.home: r==="away"?g.away:"P", home:g.home, away:g.away};
+  });
+}
+function weekRecord(w){
+  const s = state.weeks[w]; if(!s || !s.picks) return {w:0,l:0,p:0,open:0,n:0};
+  let win=0,loss=0,push=0,open=0;
+  for(const id in s.picks){ const r = s.results && s.results[id];
+    if(!r){ open++; continue; } if(r.cover==="P") push++; else if(r.cover===s.picks[id]) win++; else loss++; }
+  return {w:win,l:loss,p:push,open,n:Object.keys(s.picks).length};
+}
+function atsRecords(){
+  const rec = {};
+  for(const w in state.weeks){ const s = state.weeks[w]; if(!s.results) continue;
+    for(const id in s.results){ const r = s.results[id]; if(r.cover==="P") continue;
+      [r.home,r.away].forEach(t=>{ rec[t] = rec[t]||{w:0,l:0}; });
+      rec[r.cover].w++; rec[r.cover===r.home?r.away:r.home].l++; } }
+  return rec;
+}
+
+/* ============ lines, market, picks ============ */
+function favOf(g){
+  const ln = W(state.week).lines[g.id];
+  if(ln && ln.fav) return ln.fav;
+  const mh = g.homeLine;
+  if(mh !== null && mh !== undefined) return mh < 0 ? g.home : g.away;
+  return g.home;
+}
+function marketHome(g){
+  const o = W(state.week).mkt[g.id];
+  if(o !== undefined && o !== "" && !isNaN(o)){ const left = favOf(g); return left===g.home ? -Number(o) : Number(o); }
+  return g.homeLine;
+}
+function leftGives(g, homeLine){ if(homeLine===null||homeLine===undefined) return ""; const left = favOf(g); return left===g.home ? -homeLine : homeLine; }
+function analyse(g){
+  const ph = poolHomeLine(W(state.week).lines[g.id], g), mh = marketHome(g);
+  if(ph === null || mh === null || mh === undefined) return {ph};
+  const gapHome = ph - mh, eh = estHome(mh, ph);
+  const side = gapHome > 0 ? g.home : gapHome < 0 ? g.away : null;
+  const est = side===g.home ? eh : 1-eh;
+  const poolFav = ph < 0 ? g.home : g.away, mktFav = mh < 0 ? g.home : g.away;
+  return {ph, mh, gap:Math.round(Math.abs(gapHome)*10)/10, side, est, keys:keysBetween(ph, mh), favFlip: mh!==0 && ph!==0 && poolFav!==mktFav};
+}
+function pick(id, team){
+  const s = W(state.week);
+  if(s.picks[id] === team){ delete s.picks[id]; save(); render(); return; }
+  if(!s.picks[id] && Object.keys(s.picks).length >= 6){ toast("Six picked. Tap one to drop it first."); return; }
+  s.picks[id] = team; save(); render();
+}
+
+
+/* ============ spots ============ */
+function allLoadedGames(){ return Object.values(cache).flatMap(c=>c.games||[]); }
+let _logs = null;
+function logs(){ return _logs || (_logs = teamLogs(allLoadedGames())); }
+function invalidate(){ _logs = null; }
+function noteFor(w,t){ const s = W(w); return s.notes[t] !== undefined ? s.notes[t] : ((NOTES[w]||{})[t] || ""); }
+function spotTags(g){
+  const L = logs(), out = [];
+  [g.away, g.home].forEach(t=>{
+    spotsFor(t, g.week, L).forEach(s=>{ if(s.id==="div" && t===g.home) return; if(s.id==="intl" && t===g.home) return;
+      const who = (s.id==="div"||s.id==="intl") ? "" : poolLabel(t)+": ";
+      out.push(`<span class="sp ${s.pol<0?"neg":s.pol>0?"pos":""}">${who}${s.t}</span>`); });
+    const nt = noteFor(g.week,t);
+    if(nt) out.push(`<span class="sp inj" title="${nt.replace(/"/g,"&quot;")}">${poolLabel(t)}: ${nt}</span>`);
+  });
+  return out.join("");
+}
+function prosCons(side, g){
+  const L = logs(), opp = side===g.home?g.away:g.home, pros=[], cons=[];
+  spotsFor(side,g.week,L).forEach(s=>{ if(s.pol>0) pros.push(s.t); if(s.pol<0) cons.push(s.t); });
+  spotsFor(opp,g.week,L).forEach(s=>{ if(s.pol<0) pros.push(`${poolLabel(opp)} ${s.t}`); if(s.pol>0) cons.push(`${poolLabel(opp)} ${s.t}`); });
+  const notes = [];
+  [side,opp].forEach(t=>{ const n = noteFor(g.week,t); if(n) notes.push(`${poolLabel(t)}: ${n}`); });
+  return {pros,cons,notes};
+}
+function matchupHtml(g){
+  const F = formTable(g.week, logs()), a = F[g.away]||{}, hm = F[g.home]||{};
+  const f = x=> x===undefined ? "—" : x.toFixed(1);
+  const ord = n=> n ? n+(n%10===1&&n!==11?"st":n%10===2&&n!==12?"nd":n%10===3&&n!==13?"rd":"th") : "—";
+  const row = (t,r)=>`<tr><td style="font-weight:700">${poolLabel(t)}</td><td>${r.W??0}-${r.L??0}</td><td>${f(r.pf)} <span class="n">(${ord(r.oRank)})</span></td><td>${f(r.pa)} <span class="n">(${ord(r.dRank)})</span></td></tr>`;
+  const vs = (o,d)=>`<div class="pc">${poolLabel(o)} offense ${ord((F[o]||{}).oRank)} vs ${poolLabel(d)} defense ${ord((F[d]||{}).dRank)}</div>`;
+  const noteBox = t=>`<label class="pc">${poolLabel(t)} notes<input class="note" data-t="${t}" data-w="${g.week}" value="${(noteFor(g.week,t)||"").replace(/"/g,"&quot;")}" placeholder="injuries, QB status…"></label>`;
+  return `<details class="mu"><summary>Matchup</summary>
+    <table class="mt"><tr><th></th><th>SU</th><th>pts for / g (rank)</th><th>pts against / g (rank)</th></tr>${row(g.away,a)}${row(g.home,hm)}</table>
+    ${vs(g.away,g.home)}${vs(g.home,g.away)}
+    <div class="pc" style="color:var(--ink3)">Based on ${a.n||0} game${a.n===1?"":"s"}. Scoring after two weeks is mostly noise, and the spread already prices team strength.</div>
+    ${noteBox(g.away)}${noteBox(g.home)}
+  </details>`;
+}
+// ---- tracker: every polar spot vs. the pool line result ----
+function trackerRows(){
+  const L = logs(), agg = {};
+  for(const w in state.weeks){
+    const s = state.weeks[w]; if(!s.results) continue;
+    for(const id in s.results){
+      const r = s.results[id]; if(r.cover==="P") continue;
+      [r.home, r.away].forEach(t=>{
+        spotsFor(t, Number(w), L).forEach(sp=>{ if(!sp.pol) return;
+          const a = agg[sp.id] = agg[sp.id] || {label:sp.t.replace(/\(\d+d\)|\+\d+ /g,"").trim(), pol:sp.pol, hit:0, n:0};
+          // "hit" = the spot called it: a negative spot's team failed to cover, a positive spot's team covered
+          const covered = r.cover===t; a.n++; if((sp.pol<0 && !covered) || (sp.pol>0 && covered)) a.hit++; });
+      });
+    }
+  }
+  return Object.values(agg).sort((x,y)=>y.n-x.n);
+}
+function renderTracker(){
+  const rows = trackerRows(), tbl = document.getElementById("tracker");
+  if(!rows.length){ tbl.innerHTML = `<tr><td class="n" style="white-space:normal">Nothing graded yet. Week 3 is the first week with pool lines, so this starts filling after Monday night.</td></tr>`; return; }
+  tbl.innerHTML = `<tr><th>spot</th><th>called it</th><th>games</th></tr>` + rows.map(r=>
+    `<tr><td>${r.label}</td><td class="mono">${r.hit}-${r.n-r.hit} <span class="n">${Math.round(100*r.hit/r.n)}%</span></td><td class="n">${r.n}${r.n<40?" · too few":""}</td></tr>`).join("");
+}
+
+/* ============ render ============ */
+function nm(g, t){ return state.names==="nick" ? (TEAMS[t]||[t])[0] : poolLabel(t); }
+function whenStr(d){ const x = new Date(d); return x.toLocaleDateString(undefined,{weekday:"short"})+" "+x.toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"}); }
+function sorted(games){ return games.slice().sort((a,b)=> (new Date(a.date)-new Date(b.date)) || poolLabel(a.home).toLowerCase().localeCompare(poolLabel(b.home).toLowerCase())); }
+function render(){ invalidate(); renderWeekSel(); renderScore(); renderRank(); renderBoard(); renderSeason(); renderTracker(); }
+function renderWeekSel(){
+  const el = document.getElementById("wk");
+  if(el.options.length !== WEEKS){ el.innerHTML=""; for(let w=1;w<=WEEKS;w++){ const o=document.createElement("option"); o.value=w; o.textContent="Week "+w; el.appendChild(o);} }
+  el.value = state.week;
+  document.getElementById("names").value = state.names;
+}
+function renderScore(){
+  const r = weekRecord(state.week), qn = quarterOf(state.week);
+  let season={w:0,l:0}, q={w:0,l:0};
+  for(const w in state.weeks){ const x = weekRecord(w); season.w+=x.w; season.l+=x.l; if(quarterOf(Number(w))===qn){ q.w+=x.w; q.l+=x.l; } }
+  document.getElementById("score").innerHTML =
+   `<div class="chip ${r.n<6?"hot":""}">Picked<b>${r.n}/6</b></div>
+    <div class="chip">Week ${state.week}<b>${r.w}-${r.l}</b></div>
+    <div class="chip">Q${qn}<b>${q.w}-${q.l}</b></div>
+    <div class="chip">Season<b>${season.w}-${season.l}</b></div>`;
+}
+function renderBoard(){
+  const el = document.getElementById("board"), c = cache[state.week];
+  if(!c){ el.innerHTML = `<p class="n" style="white-space:normal">No games saved for Week ${state.week} yet. Send me the pool board and I'll load it.</p>`; return; }
+  const s = W(state.week), ats = atsRecords();
+  el.innerHTML = sorted(c.games).map(g=>{
+    const fav = favOf(g), dog = fav===g.home?g.away:g.home, ln = s.lines[g.id], a = analyse(g), res = s.results[g.id];
+    const btn = t=>{
+      const cls=["side"]; if(t===g.home) cls.push("home");
+      if(s.picks[g.id]===t){ cls.push("picked"); if(res && res.cover!=="P") cls.push(res.cover===t?"W":"L"); }
+      const r = ats[t];
+      return `<button class="${cls.join(" ")}" data-g="${g.id}" data-t="${t}"><span class="nm">${nm(g,t)}</span>${r?`<span class="ats">${r.w}-${r.l} ATS</span>`:""}</button>`;
+    };
+    const pts = ln && ln.pts!==undefined && ln.pts!=="" ? ln.pts : "";
+    const warn = pts!=="" && Math.abs(Number(pts)*2 % 2) !== 1;
+    const over = s.mkt[g.id]!==undefined && s.mkt[g.id]!=="";
+    const mkVal = over ? s.mkt[g.id] : leftGives(g, g.homeLine);
+    let val = `<span class="n">no line</span>`;
+    if(a.side) val = `<span class="v">${nm(g,a.side)} +${a.gap}</span>${a.keys.map(k=>`<span class="tag key">${k}</span>`).join("")}${a.favFlip?`<span class="tag warn">fav differs</span>`:""}<span class="v">${Math.round(a.est*100)}%</span>`;
+    else if(a.ph!==null && a.mh!==undefined && a.mh!==null) val = `<span class="n">even with market</span>`;
+    if(g.completed) val = res ? `<span class="n">${poolLabel(res.cover)} covered</span>` : `<span class="n">final</span>`;
+    const fin = g.state==="pre" ? "" : `<span class="fin">${poolLabel(g.away)} ${g.awayScore} · ${poolLabel(g.home)} ${g.homeScore}${g.completed?"":" (live)"}</span>`;
+    return `<div class="game">
+      <div class="main">
+        ${btn(fav)}
+        <input class="pl ${warn?"warn":""}" data-g="${g.id}" data-fav="${fav}" type="number" inputmode="decimal" step="0.5" min="0" value="${pts}" placeholder="—" aria-label="Pool line">
+        ${btn(dog)}
+        <button class="flip" data-g="${g.id}" data-dog="${dog}" data-pts="${pts}" aria-label="Swap favourite">⇄</button>
+      </div>
+      <div class="sub">
+        <span class="when">${whenStr(g.date)}</span>
+        <label class="mk">Mkt <input class="mkt ${over?"edited":""}" data-g="${g.id}" type="number" inputmode="decimal" step="0.5" value="${mkVal}" aria-label="Market line for the left team"></label>
+        ${val} ${fin}
+      </div>
+      <div class="spots">${spotTags(g)}</div>
+      ${matchupHtml(g)}</div>`;
+  }).join("");
+  el.querySelectorAll(".side").forEach(b=> b.onclick = ()=> pick(b.dataset.g, b.dataset.t));
+  el.querySelectorAll(".pl").forEach(i=>{
+    i.onchange = ()=>{ const s2=W(state.week); s2.lines[i.dataset.g] = {fav:i.dataset.fav, pts:i.value===""?"":Number(i.value)}; regrade(state.week); save(); render(); };
+    i.onkeydown = e=>{ if(e.key==="Enter"){ e.preventDefault(); i.blur(); } };
+  });
+  el.querySelectorAll(".mkt").forEach(i=>{
+    i.onchange = ()=>{ const s2=W(state.week); if(i.value==="") delete s2.mkt[i.dataset.g]; else s2.mkt[i.dataset.g] = Number(i.value); save(); render(); };
+    i.onkeydown = e=>{ if(e.key==="Enter"){ e.preventDefault(); i.blur(); } };
+  });
+  el.querySelectorAll(".note").forEach(i=>{ i.onchange = ()=>{ W(Number(i.dataset.w)).notes[i.dataset.t] = i.value; save(); render(); }; });
+  el.querySelectorAll(".flip").forEach(b=> b.onclick = ()=>{ const s2=W(state.week); s2.lines[b.dataset.g] = {fav:b.dataset.dog, pts:b.dataset.pts===""?"":Number(b.dataset.pts)}; delete s2.mkt[b.dataset.g]; regrade(state.week); save(); render(); });
+}
+function renderRank(){
+  const tbl = document.getElementById("rank"), c = cache[state.week];
+  if(!c){ tbl.innerHTML=""; return; }
+  const s = W(state.week);
+  const rows = c.games.map(g=>({g,a:analyse(g)})).filter(x=>x.a.side && !x.g.completed).sort((x,y)=> y.a.est-x.a.est);
+  if(!rows.length){ tbl.innerHTML = `<tr><td class="n">Every game is even with the market right now.</td></tr>`; return; }
+  tbl.innerHTML = `<tr><th>side</th><th>vs</th><th>getting</th><th>est</th></tr>` + rows.map(({g,a})=>{
+    const opp = a.side===g.home?g.away:g.home, picked = s.picks[g.id]===a.side;
+    return `<tr class="rank" data-g="${g.id}" data-t="${a.side}" style="${picked?"background:var(--pickbg)":""}">
+      <td style="font-weight:700">${nm(g,a.side)}${picked?' <span class="tag key">picked</span>':""}</td>
+      <td class="n">${a.side===g.home?"vs":"@"} ${nm(g,opp)}</td>
+      <td class="v">+${a.gap} ${a.keys.map(k=>`<span class="tag key">${k}</span>`).join("")}${a.favFlip?' <span class="tag warn">fav differs</span>':""}</td>
+      <td class="v">${Math.round(a.est*100)}%</td></tr>
+      ${(()=>{ const pc = prosCons(a.side,g); if(!pc.pros.length && !pc.cons.length && !pc.notes.length) return "";
+        const spots = (pc.pros.length||pc.cons.length)
+          ? `${pc.pros.map(x=>`<span class="p">+ ${x}</span>`).join(" · ")}${pc.pros.length&&pc.cons.length?" · ":""}${pc.cons.map(x=>`<span class="c">− ${x}</span>`).join(" · ")}` : "";
+        const notes = pc.notes.map(x=>`<div style="color:var(--ink2)">${x}</div>`).join("");
+        return `<tr class="rank" data-g="${g.id}" data-t="${a.side}"><td colspan="4" class="pc" style="padding-top:0">${spots}${notes}</td></tr>`; })()}`;
+  }).join("");
+  tbl.querySelectorAll("tr.rank").forEach(tr=> tr.onclick = ()=> pick(tr.dataset.g, tr.dataset.t));
+}
+function renderSeason(){
+  const tbl = document.getElementById("season");
+  const out = [`<tr><th>wk</th><th>picks</th><th>record</th><th></th></tr>`];
+  const q = {1:[0,0],2:[0,0],3:[0,0],4:[0,0]};
+  for(let w=1;w<=WEEKS;w++){
+    const r = weekRecord(w), qq = quarterOf(w); q[qq][0]+=r.w; q[qq][1]+=r.l;
+    if(r.n) out.push(`<tr><td>${w}</td><td>${r.n}/6</td><td class="n">${r.w}-${r.l}${r.open?` · ${r.open} open`:""}</td><td class="n">Q${qq}</td></tr>`);
+    if([4,9,13,18].includes(w) && (q[qq][0]+q[qq][1])>0) out.push(`<tr><td colspan="2" class="n">Quarter ${qq}</td><td style="font-weight:700">${q[qq][0]}-${q[qq][1]}</td><td></td></tr>`);
+  }
+  if(out.length===1) out.push(`<tr><td colspan="4" class="n">No picks yet.</td></tr>`);
+  tbl.innerHTML = out.join("");
+}
+
+/* ============ misc ============ */
+function toast(m){ const t = document.getElementById("toast"); t.textContent=m; t.style.display="block"; clearTimeout(t._t); t._t=setTimeout(()=>t.style.display="none",2600); }
+function save(){ Store.set("p6.state",state); }
+document.getElementById("wk").onchange = e=>{ state.week = Number(e.target.value); save(); ensureWeek(state.week); statusLine(); render(); };
+document.getElementById("btnRefresh").onclick = refresh;
+document.getElementById("names").onchange = e=>{ state.names = e.target.value; save(); render(); };
+document.getElementById("scratch").oninput = e=>{ state.scratch = e.target.value; save(); };
+document.getElementById("btnParse").onclick = ()=>{
+  const c = cache[state.week], out = document.getElementById("parseOut");
+  if(!c){ out.textContent = "No games for this week yet."; return; }
+  const found = parseBoard(document.getElementById("paste").value, c.games), s = W(state.week);
+  for(const id in found) s.lines[id] = found[id];
+  regrade(state.week); save(); render();
+  const miss = c.games.filter(g=>!found[g.id]).map(g=>`${poolLabel(g.away)} @ ${poolLabel(g.home)}`);
+  out.textContent = `Read ${Object.keys(found).length} of ${c.games.length} games.` + (miss.length?` Not matched: ${miss.join(", ")}.`:"");
+};
+document.getElementById("btnExport").onclick = ()=>{ document.getElementById("io").value = JSON.stringify(state); };
+document.getElementById("btnImport").onclick = ()=>{
+  try{ state = Object.assign(state, JSON.parse(document.getElementById("io").value)); save(); ensureWeek(state.week); render(); toast("Loaded."); }
+  catch(e){ toast("That isn't valid saved state."); }
+};
+document.getElementById("btnClearWeek").onclick = ()=>{ W(state.week).picks = {}; save(); render(); toast(`Week ${state.week} picks cleared. Lines kept.`); };
+
+(async function(){
+  try{
+    const s = await Store.get("p6.state"); if(s && s.v === 3) state = Object.assign(state, s);
+    const c = await Store.get("p6.cache"); if(c && s && s.v === 3) cache = c;
+  }catch(e){}
+  state.v = 3; state.seeded = state.seeded || {};
+  document.getElementById("scratch").value = state.scratch || "";
+  ensureWeek(state.week); statusLine(); render();
+  refresh();
+})();
+</script>
+</body>
+</html>

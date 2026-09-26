@@ -113,6 +113,7 @@ table.mt th{font-size:10px;color:var(--ink3);font-weight:500}
   <select id="wk" aria-label="Week"></select>
   <span class="spacer"></span>
   <select id="names" aria-label="Team labels"><option value="pool">Pool labels</option><option value="nick">Nicknames</option></select>
+  <select id="risk" aria-label="Risk"><option value="safe">Safe: worst book</option><option value="normal">Normal: middle</option><option value="swing">Swing: best book</option></select>
   <button id="btnRefresh" class="primary">Refresh</button>
 </div>
 <span id="status"></span>
@@ -123,7 +124,7 @@ table.mt th{font-size:10px;color:var(--ink3);font-weight:500}
   <h2>BEST VALUE THIS WEEK</h2>
   <table class="b" id="rank"></table>
   <div class="legend">Tap a row to pick it. "Getting" is how many points better the pool's number is than the market. <span class="tag key">3</span> means that gap crosses a key number, which is worth far more than a normal half point.
-    Green + and red − are schedule spots for and against your side. Notes below them are plain context, counted neither way, because a note can help either team.</div>
+    The percentage follows your risk setting: Safe prices against the least favourable book, Swing against the best, Normal splits them. The smaller numbers under it are the floor and ceiling across books. Green + and red − are schedule spots for and against your side. Notes below them are plain context, counted neither way, because a note can help either team.</div>
 </div>
 
 <div class="card">
@@ -148,6 +149,17 @@ table.mt th{font-size:10px;color:var(--ink3);font-weight:500}
   <table class="b" id="tracker"></table>
   <div class="legend">Every flagged spot, logged against how that team actually did versus the pool's line. Fills in as weeks are graded. Don't lean on any row until it has 40+ games. Before that it's noise.</div>
 </div>
+
+<details>
+  <summary>Data sources</summary>
+  <p class="legend" style="margin-top:0"><b>Several books.</b> Free key from the-odds-api.com, 500 calls a month, one call per fetch. It is stored on this device only, never in the repo.</p>
+  <input id="oddsKey" placeholder="Odds API key" style="width:100%;margin-bottom:6px">
+  <button id="btnBooks" class="primary">Fetch book lines</button>
+  <span id="oddsStatus" class="legend"></span>
+  <p class="legend"><b>Injuries</b> from ESPN's public feed.</p>
+  <button id="btnInj">Fetch injuries</button>
+  <span id="injStatus" class="legend"></span>
+</details>
 
 <details>
   <summary>Paste a pool board</summary>
@@ -230,6 +242,8 @@ const TEAMS = {ARI:["Cardinals","Arizona Cardinals","Ari"],ATL:["Falcons","Atlan
  SEA:["Seahawks","Seattle Seahawks","Sea"],SF:["49ers","San Francisco 49ers","SF"],TB:["Buccaneers","Tampa Bay Buccaneers","TB"],TEN:["Titans","Tennessee Titans","Ten"],
  WSH:["Commanders","Washington Commanders","Was"]};
 function poolLabel(ab){ const t = TEAMS[canon(ab)]; return t ? t[2] : ab; }
+const BY_FULL = (()=>{ const m={}; for(const ab in TEAMS){ m[TEAMS[ab][1].toLowerCase()] = ab; } return m; })();
+function fromFullName(n){ return BY_FULL[(n||"").toLowerCase()] || null; }
 function gameId(w, away, home){ return `w${w}-${canon(away)}@${canon(home)}`; }
 
 // Week 3 as it stood Tue Sep 22 AM: schedule, and market numbers from bet365 / DraftKings.
@@ -548,14 +562,28 @@ function marketHome(g){
   return g.homeLine;
 }
 function leftGives(g, homeLine){ if(homeLine===null||homeLine===undefined) return ""; const left = favOf(g); return left===g.home ? -homeLine : homeLine; }
+function bookLines(g){
+  const b = (W(state.week).books || {})[g.id];
+  if(b && b.length) return b;                       // [{book, homeLine}]
+  const mh = marketHome(g);
+  return (mh===null||mh===undefined) ? [] : [{book:"ESPN", homeLine:mh}];
+}
 function analyse(g){
-  const ph = poolHomeLine(W(state.week).lines[g.id], g), mh = marketHome(g);
-  if(ph === null || mh === null || mh === undefined) return {ph};
-  const gapHome = ph - mh, eh = estHome(mh, ph);
+  const ph = poolHomeLine(W(state.week).lines[g.id], g);
+  const lines = bookLines(g);
+  if(ph === null || !lines.length) return {ph};
+  const nums = lines.map(x=>x.homeLine).sort((a,b)=>a-b);
+  const mid = nums[Math.floor(nums.length/2)];      // consensus decides which side has value
+  const gapHome = ph - mid;
   const side = gapHome > 0 ? g.home : gapHome < 0 ? g.away : null;
-  const est = side===g.home ? eh : 1-eh;
-  const poolFav = ph < 0 ? g.home : g.away, mktFav = mh < 0 ? g.home : g.away;
-  return {ph, mh, gap:Math.round(Math.abs(gapHome)*10)/10, side, est, keys:keysBetween(ph, mh), favFlip: mh!==0 && ph!==0 && poolFav!==mktFav};
+  const ests = nums.map(m=>{ const eh = estHome(m, ph); return side===g.home ? eh : 1-eh; });
+  const floor = Math.min(...ests), ceil = Math.max(...ests);
+  const est = state.risk==="swing" ? ceil : state.risk==="safe" ? floor : (floor+ceil)/2;
+  const worstLine = nums[ests.indexOf(floor)];
+  const poolFav = ph < 0 ? g.home : g.away, mktFav = mid < 0 ? g.home : g.away;
+  return {ph, mh:mid, nBooks:lines.length, spread:nums[nums.length-1]-nums[0],
+    gap:Math.round(Math.abs(gapHome)*10)/10, side, est, floor, ceil,
+    keys:keysBetween(ph, mid), favFlip: mid!==0 && ph!==0 && poolFav!==mktFav, worstLine};
 }
 function pick(id, team){
   const s = W(state.week);
@@ -565,12 +593,76 @@ function pick(id, team){
 }
 
 
+/* ============ The Odds API: several books ============ */
+const ODDS_URL = "https://api.the-odds-api.com/v4/sports/americanfootball_nfl/odds";
+async function fetchBooks(){
+  const key = (state.oddsKey||"").trim();
+  if(!key){ oddsStatus("Add your Odds API key first."); return; }
+  oddsStatus("fetching books…");
+  try{
+    const url = `${ODDS_URL}?regions=us&markets=spreads&oddsFormat=american&apiKey=${encodeURIComponent(key)}`;
+    const r = await fetch(url,{cache:"no-store"});
+    if(r.status === 401) throw new Error("key rejected");
+    if(r.status === 429) throw new Error("monthly quota used up");
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    const events = await r.json();
+    const s = W(state.week); s.books = s.books || {};
+    let matched = 0, books = new Set();
+    events.forEach(ev=>{
+      const H = fromFullName(ev.home_team), A = fromFullName(ev.away_team);
+      if(!H || !A) return;
+      const id = gameId(state.week, A, H);
+      if(!(cache[state.week]||{games:[]}).games.some(g=>g.id===id)) return;   // other week
+      const rows = [];
+      (ev.bookmakers||[]).forEach(bk=>{
+        const mk = (bk.markets||[]).find(m=>m.key==="spreads"); if(!mk) return;
+        const o = (mk.outcomes||[]).find(x=>fromFullName(x.name)===H);
+        if(o && typeof o.point === "number"){ rows.push({book:bk.title||bk.key, homeLine:o.point}); books.add(bk.title||bk.key); }
+      });
+      if(rows.length){ s.books[id] = rows; matched++; }
+    });
+    const rem = r.headers.get("x-requests-remaining");
+    s.booksAt = new Date().toISOString();
+    save(); render();
+    oddsStatus(`${matched} games from ${books.size} books${rem?` · ${rem} calls left this month`:""} · ${new Date().toLocaleTimeString()}`);
+  }catch(e){ oddsStatus("could not fetch: "+e.message); }
+}
+function oddsStatus(t){ const el = document.getElementById("oddsStatus"); if(el) el.textContent = t; }
+
+/* ============ ESPN injuries ============ */
+async function fetchInjuries(){
+  injStatus("fetching…");
+  try{
+    const r = await fetch("https://site.api.espn.com/apis/site/v2/sports/football/nfl/injuries",{cache:"no-store"});
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    const j = await r.json();
+    const out = {};
+    (j.injuries||[]).forEach(t=>{
+      const ab = canon(t.abbreviation || (t.team && t.team.abbreviation) || "");
+      if(!TEAMS[ab]) return;
+      const rows = (t.injuries||[]).map(i=>{
+        const nm = (i.athlete && i.athlete.displayName) || "";
+        const st = i.status || (i.type && i.type.description) || "";
+        const d = (i.details && (i.details.type || i.details.detail)) || "";
+        return [nm, st && `(${st}${d?", "+d:""})`].filter(Boolean).join(" ");
+      }).filter(Boolean);
+      if(rows.length) out[ab] = rows.slice(0,6).join("; ");
+    });
+    if(!Object.keys(out).length) throw new Error("no rows");
+    state.autoInj = out; state.autoInjAt = new Date().toISOString();
+    save(); render();
+    injStatus(`${Object.keys(out).length} teams · ${new Date().toLocaleTimeString()}`);
+  }catch(e){ injStatus("unavailable ("+e.message+"). Hand-entered notes still show."); }
+}
+function injStatus(t){ const el = document.getElementById("injStatus"); if(el) el.textContent = t; }
+
 /* ============ spots ============ */
 function allLoadedGames(){ return Object.values(cache).flatMap(c=>c.games||[]); }
 let _logs = null;
 function logs(){ return _logs || (_logs = teamLogs(allLoadedGames())); }
 function invalidate(){ _logs = null; }
 function noteFor(w,t){ const s = W(w); return s.notes[t] !== undefined ? s.notes[t] : ((NOTES[w]||{})[t] || ""); }
+function injFor(t){ return (state.autoInj||{})[canon(t)] || ""; }
 function spotTags(g){
   const L = logs(), out = [];
   [g.away, g.home].forEach(t=>{
@@ -579,6 +671,8 @@ function spotTags(g){
       out.push(`<span class="sp ${s.pol<0?"neg":s.pol>0?"pos":""}">${who}${s.t}</span>`); });
     const nt = noteFor(g.week,t);
     if(nt) out.push(`<span class="sp inj" title="${nt.replace(/"/g,"&quot;")}">${poolLabel(t)}: ${nt}</span>`);
+    const inj = injFor(t);
+    if(inj) out.push(`<span class="sp inj" title="${inj.replace(/"/g,"&quot;")}">${poolLabel(t)} injuries: ${inj}</span>`);
   });
   return out.join("");
 }
@@ -666,7 +760,7 @@ function renderBoard(){
     const over = s.mkt[g.id]!==undefined && s.mkt[g.id]!=="";
     const mkVal = over ? s.mkt[g.id] : leftGives(g, g.homeLine);
     let val = `<span class="n">no line</span>`;
-    if(a.side) val = `<span class="v">${nm(g,a.side)} +${a.gap}</span>${a.keys.map(k=>`<span class="tag key">${k}</span>`).join("")}${a.favFlip?`<span class="tag warn">fav differs</span>`:""}<span class="v">${Math.round(a.est*100)}%</span>`;
+    if(a.side) val = `<span class="v">${nm(g,a.side)} +${a.gap}</span>${a.keys.map(k=>`<span class="tag key">${k}</span>`).join("")}${a.favFlip?`<span class="tag warn">fav differs</span>`:""}<span class="v">${Math.round(a.est*100)}%</span>${a.nBooks>1?`<span class="tag">${a.nBooks} books${a.spread?`, ${a.spread.toFixed(1)} apart`:""}</span>`:""}`;
     else if(a.ph!==null && a.mh!==undefined && a.mh!==null) val = `<span class="n">even with market</span>`;
     if(g.completed) val = res ? `<span class="n">${poolLabel(res.cover)} covered</span>` : `<span class="n">final</span>`;
     const fin = g.state==="pre" ? "" : `<span class="fin">${poolLabel(g.away)} ${g.awayScore} · ${poolLabel(g.home)} ${g.homeScore}${g.completed?"":" (live)"}</span>`;
@@ -709,7 +803,7 @@ function renderRank(){
       <td style="font-weight:700">${nm(g,a.side)}${picked?' <span class="tag key">picked</span>':""}</td>
       <td class="n">${a.side===g.home?"vs":"@"} ${nm(g,opp)}</td>
       <td class="v">+${a.gap} ${a.keys.map(k=>`<span class="tag key">${k}</span>`).join("")}${a.favFlip?' <span class="tag warn">fav differs</span>':""}</td>
-      <td class="v">${Math.round(a.est*100)}%</td></tr>
+      <td class="v">${Math.round(a.est*100)}%${a.nBooks>1?`<div class="n" style="font-weight:400">${Math.round(a.floor*100)}-${Math.round(a.ceil*100)} · ${a.nBooks} books</div>`:""}</td></tr>
       ${(()=>{ const pc = prosCons(a.side,g); if(!pc.pros.length && !pc.cons.length && !pc.notes.length) return "";
         const spots = (pc.pros.length||pc.cons.length)
           ? `${pc.pros.map(x=>`<span class="p">+ ${x}</span>`).join(" · ")}${pc.pros.length&&pc.cons.length?" · ":""}${pc.cons.map(x=>`<span class="c">− ${x}</span>`).join(" · ")}` : "";
@@ -736,6 +830,10 @@ function toast(m){ const t = document.getElementById("toast"); t.textContent=m; 
 function save(){ Store.set("p6.state",state); }
 document.getElementById("wk").onchange = e=>{ state.week = Number(e.target.value); save(); ensureWeek(state.week); statusLine(); render(); };
 document.getElementById("btnRefresh").onclick = refresh;
+document.getElementById("btnBooks").onclick = fetchBooks;
+document.getElementById("btnInj").onclick = fetchInjuries;
+document.getElementById("oddsKey").onchange = e=>{ state.oddsKey = e.target.value.trim(); save(); };
+document.getElementById("risk").onchange = e=>{ state.risk = e.target.value; save(); render(); };
 document.getElementById("names").onchange = e=>{ state.names = e.target.value; save(); render(); };
 document.getElementById("scratch").oninput = e=>{ state.scratch = e.target.value; save(); };
 document.getElementById("btnParse").onclick = ()=>{
@@ -761,6 +859,12 @@ document.getElementById("btnClearWeek").onclick = ()=>{ W(state.week).picks = {}
   }catch(e){}
   state.v = 3; state.seeded = state.seeded || {};
   document.getElementById("scratch").value = state.scratch || "";
+  state.risk = state.risk || "safe";
+  document.getElementById("risk").value = state.risk;
+  document.getElementById("oddsKey").value = state.oddsKey || "";
+  if(state.autoInjAt) injStatus("last fetched "+new Date(state.autoInjAt).toLocaleString());
+  const bAt = (state.weeks[state.week]||{}).booksAt;
+  if(bAt) oddsStatus("last fetched "+new Date(bAt).toLocaleString());
   ensureWeek(state.week); statusLine(); render();
   refresh();
 })();

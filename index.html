@@ -630,29 +630,41 @@ async function fetchBooks(){
 function oddsStatus(t){ const el = document.getElementById("oddsStatus"); if(el) el.textContent = t; }
 
 /* ============ ESPN injuries ============ */
+function injRowText(i){
+  const nm = (i.athlete && i.athlete.displayName) || i.displayName || "";
+  const st = i.status || (i.type && (i.type.description||i.type.abbreviation)) || "";
+  const d = (i.details && (i.details.type||i.details.detail||i.details.location)) || i.shortComment || "";
+  return [nm, (st||d) && `(${[st,d].filter(Boolean).join(", ")})`].filter(Boolean).join(" ");
+}
 async function fetchInjuries(){
   injStatus("fetching…");
-  try{
-    const r = await fetch("https://site.api.espn.com/apis/site/v2/sports/football/nfl/injuries",{cache:"no-store"});
-    if(!r.ok) throw new Error("HTTP "+r.status);
-    const j = await r.json();
-    const out = {};
-    (j.injuries||[]).forEach(t=>{
-      const ab = canon(t.abbreviation || (t.team && t.team.abbreviation) || "");
-      if(!TEAMS[ab]) return;
-      const rows = (t.injuries||[]).map(i=>{
-        const nm = (i.athlete && i.athlete.displayName) || "";
-        const st = i.status || (i.type && i.type.description) || "";
-        const d = (i.details && (i.details.type || i.details.detail)) || "";
-        return [nm, st && `(${st}${d?", "+d:""})`].filter(Boolean).join(" ");
-      }).filter(Boolean);
-      if(rows.length) out[ab] = rows.slice(0,6).join("; ");
-    });
-    if(!Object.keys(out).length) throw new Error("no rows");
-    state.autoInj = out; state.autoInjAt = new Date().toISOString();
-    save(); render();
-    injStatus(`${Object.keys(out).length} teams · ${new Date().toLocaleTimeString()}`);
-  }catch(e){ injStatus("unavailable ("+e.message+"). Hand-entered notes still show."); }
+  const urls = [
+    "https://site.api.espn.com/apis/site/v2/sports/football/nfl/injuries",
+    "https://site.api.espn.com/apis/site/v2/sports/football/nfl/news/injuries"
+  ];
+  let lastErr = "";
+  for(const url of urls){
+    try{
+      const r = await fetch(url,{cache:"no-store"});
+      if(!r.ok){ lastErr = "HTTP "+r.status+" from "+url; continue; }
+      const j = await r.json();
+      const list = j.injuries || j.items || [];
+      if(!Array.isArray(list) || !list.length){ lastErr = "empty response from "+url; continue; }
+      const out = {};
+      list.forEach(t=>{
+        const ab = canon(t.abbreviation || (t.team && (t.team.abbreviation||t.team)) || "");
+        if(!TEAMS[ab]) return;
+        const rows = (t.injuries||[]).map(injRowText).filter(Boolean);
+        if(rows.length) out[ab] = rows.slice(0,6).join("; ");
+      });
+      if(!Object.keys(out).length){ lastErr = "no team rows parsed from "+url; continue; }
+      state.autoInj = out; state.autoInjAt = new Date().toISOString();
+      save(); render();
+      injStatus(`${Object.keys(out).length} teams · ${new Date().toLocaleTimeString()}`);
+      return;
+    }catch(e){ lastErr = e.message + " from " + url; }
+  }
+  injStatus("unavailable: "+lastErr+". Hand-entered notes still show.");
 }
 function injStatus(t){ const el = document.getElementById("injStatus"); if(el) el.textContent = t; }
 

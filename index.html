@@ -159,6 +159,9 @@ table.mt th{font-size:10px;color:var(--ink3);font-weight:500}
   <p class="legend"><b>Injuries</b> from ESPN's public feed.</p>
   <button id="btnInj">Fetch injuries</button>
   <span id="injStatus" class="legend"></span>
+  <p class="legend"><b>Wind forecast</b> for outdoor stadiums, from Open-Meteo (free, no key). Shown as context only, not folded into the percentage, since a forecast that existed before your pool line froze is already priced in. Only flagged above 15 mph, since that is roughly where it starts to suppress passing. Domes and neutral sites are skipped.</p>
+  <button id="btnWx">Fetch wind forecast</button>
+  <span id="wxStatus" class="legend"></span>
 </details>
 
 <details>
@@ -332,6 +335,17 @@ const HIST = [
 // Home time zone, hours behind ET (ARI does not observe DST, so it matches Pacific in the fall)
 const TZ = {SEA:3,SF:3,LAR:3,LAC:3,LV:3,ARI:3,DEN:2,KC:1,CHI:1,GB:1,MIN:1,DAL:1,HOU:1,NO:1,TEN:1};
 function tz(t){ return TZ[canon(t)] || 0; }
+// Home stadium coordinates and roof type. Domes/fixed roofs never get a weather flag.
+const STADIUM = {
+ ARI:[33.5276,-112.2626,"dome"],ATL:[33.7554,-84.4009,"dome"],BAL:[39.2780,-76.6227,"open"],BUF:[42.7738,-78.7870,"open"],
+ CAR:[35.2258,-80.8528,"open"],CHI:[41.8623,-87.6167,"open"],CIN:[39.0954,-84.5160,"open"],CLE:[41.5061,-81.6995,"open"],
+ DAL:[32.7473,-97.0945,"dome"],DEN:[39.7439,-105.0201,"open"],DET:[42.3400,-83.0456,"dome"],GB:[44.5013,-88.0622,"open"],
+ HOU:[29.6847,-95.4107,"dome"],IND:[39.7601,-86.1639,"dome"],JAX:[30.3239,-81.6373,"open"],KC:[39.0489,-94.4839,"open"],
+ LAC:[33.9535,-118.3392,"open"],LAR:[33.9535,-118.3392,"open"],LV:[36.0909,-115.1833,"dome"],MIA:[25.9580,-80.2389,"open"],
+ MIN:[44.9738,-93.2575,"dome"],NE:[42.0909,-71.2643,"open"],NO:[29.9509,-90.0815,"dome"],NYG:[40.8135,-74.0745,"open"],
+ NYJ:[40.8135,-74.0745,"open"],PHI:[39.9008,-75.1675,"open"],PIT:[40.4468,-80.0158,"open"],SEA:[47.5952,-122.3316,"open"],
+ SF:[37.4032,-121.9698,"open"],TB:[27.9759,-82.5033,"open"],TEN:[36.1665,-86.7713,"open"],WSH:[38.9078,-76.8645,"open"]
+};
 const DIV = {BUF:"AE",MIA:"AE",NE:"AE",NYJ:"AE",BAL:"AN",CIN:"AN",CLE:"AN",PIT:"AN",HOU:"AS",IND:"AS",JAX:"AS",TEN:"AS",
  DEN:"AW",KC:"AW",LV:"AW",LAC:"AW",DAL:"NE",NYG:"NE",PHI:"NE",WSH:"NE",CHI:"NN",DET:"NN",GB:"NN",MIN:"NN",
  ATL:"NS",CAR:"NS",NO:"NS",TB:"NS",ARI:"NW",LAR:"NW",SF:"NW",SEA:"NW"};
@@ -662,6 +676,48 @@ async function fetchInjuries(){
 }
 function injStatus(t){ const el = document.getElementById("injStatus"); if(el) el.textContent = t; }
 
+/* ============ Open-Meteo: wind forecast for outdoor stadiums ============ */
+async function fetchWeather(){
+  const c = cache[state.week];
+  if(!c){ wxStatus("load a week first"); return; }
+  const games = c.games.filter(g => !g.site && STADIUM[g.home] && STADIUM[g.home][2]==="open");
+  if(!games.length){ wxStatus("every game this week is indoors or neutral site"); return; }
+  wxStatus("fetching…");
+  const out = {}; let ok=0, err="";
+  for(const g of games){
+    const [lat,lon] = STADIUM[g.home];
+    try{
+      const kickoff = new Date(g.date);
+      const hourISO = new Date(Math.round(kickoff.getTime()/3600000)*3600000).toISOString().slice(0,13);
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=wind_speed_10m,wind_gusts_10m,precipitation_probability,temperature_2m&temperature_unit=fahrenheit&wind_speed_unit=mph&forecast_days=10&timezone=UTC`;
+      const r = await fetch(url,{cache:"no-store"});
+      if(!r.ok){ err = "HTTP "+r.status; continue; }
+      const j = await r.json();
+      const times = (j.hourly||{}).time || [];
+      let idx = times.findIndex(t=>t.startsWith(hourISO));
+      if(idx<0){ // kickoff beyond the forecast window (>10 days out): skip quietly
+        continue;
+      }
+      out[g.id] = {
+        wind: Math.round(j.hourly.wind_speed_10m[idx]),
+        gust: Math.round(j.hourly.wind_gusts_10m[idx]),
+        precip: j.hourly.precipitation_probability[idx],
+        temp: Math.round(j.hourly.temperature_2m[idx])
+      };
+      ok++;
+    }catch(e){ err = e.message; }
+  }
+  if(!ok){ wxStatus(err ? `unavailable — ${err}` : "too far out for a forecast yet, check back closer to kickoff"); return; }
+  const s = W(state.week); s.wx = out; s.wxAt = new Date().toISOString();
+  save(); render();
+  wxStatus(`${ok} of ${games.length} outdoor games · ${new Date().toLocaleTimeString()}`);
+}
+function wxStatus(t){ const el = document.getElementById("wxStatus"); if(el) el.textContent = t; }
+function wxFor(g){
+  const s = W(g.week);
+  return (s.wx || {})[g.id] || null;
+}
+
 /* ============ spots ============ */
 function allLoadedGames(){ return Object.values(cache).flatMap(c=>c.games||[]); }
 let _logs = null;
@@ -671,6 +727,17 @@ function noteFor(w,t){ const s = W(w); return s.notes[t] !== undefined ? s.notes
 function injFor(t){ return (state.autoInj||{})[canon(t)] || ""; }
 function spotTags(g){
   const L = logs(), out = [];
+  if(!g.site && STADIUM[g.home]){
+    if(STADIUM[g.home][2]!=="open"){ /* dome/fixed roof: weather is irrelevant, show nothing */ }
+    else {
+      const wx = wxFor(g);
+      if(wx){
+        const strong = wx.wind>=20 || wx.gust>=30;
+        const notable = strong || wx.wind>=15 || wx.precip>=50;
+        if(notable) out.push(`<span class="sp ${strong?"neg":""}">Wind ${wx.wind} mph (gust ${wx.gust})${wx.precip>=30?`, ${wx.precip}% precip`:""}, ${wx.temp}°F</span>`);
+      }
+    }
+  }
   [g.away, g.home].forEach(t=>{
     spotsFor(t, g.week, L).forEach(s=>{ if(s.id==="div" && t===g.home) return; if(s.id==="intl" && t===g.home) return;
       const who = (s.id==="div"||s.id==="intl") ? "" : poolLabel(t)+": ";
@@ -838,6 +905,7 @@ document.getElementById("wk").onchange = e=>{ state.week = Number(e.target.value
 document.getElementById("btnRefresh").onclick = refresh;
 document.getElementById("btnBooks").onclick = fetchBooks;
 document.getElementById("btnInj").onclick = fetchInjuries;
+document.getElementById("btnWx").onclick = fetchWeather;
 document.getElementById("oddsKey").onchange = e=>{ state.oddsKey = e.target.value.trim(); save(); };
 document.getElementById("risk").onchange = e=>{ state.risk = e.target.value; save(); render(); };
 document.getElementById("names").onchange = e=>{ state.names = e.target.value; save(); render(); };
@@ -869,6 +937,8 @@ document.getElementById("btnClearWeek").onclick = ()=>{ W(state.week).picks = {}
   document.getElementById("risk").value = state.risk;
   document.getElementById("oddsKey").value = state.oddsKey || "";
   if(state.autoInjAt) injStatus("last fetched "+new Date(state.autoInjAt).toLocaleString());
+  const wxAt = (state.weeks[state.week]||{}).wxAt;
+  if(wxAt) wxStatus("last fetched "+new Date(wxAt).toLocaleString());
   const bAt = (state.weeks[state.week]||{}).booksAt;
   if(bAt) oddsStatus("last fetched "+new Date(bAt).toLocaleString());
   ensureWeek(state.week); statusLine(); render();

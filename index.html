@@ -634,35 +634,30 @@ async function fetchInjuries(){
   injStatus("fetching…");
   try{
     const r = await fetch("https://site.api.espn.com/apis/site/v2/sports/football/nfl/injuries",{cache:"no-store"});
-    const raw = await r.text();
     if(!r.ok){ injStatus(`unavailable — HTTP ${r.status}`); return; }
-    const j = JSON.parse(raw);
-    const list = j.injuries || j.items || (Array.isArray(j)?j:[]);
-    if(!Array.isArray(list) || !list.length){
-      injStatus(`unavailable — top-level keys: ${Object.keys(j).join(", ")}`);
-      return;
-    }
-    // try several plausible shapes per team entry
+    const j = await r.json();
+    const list = j.injuries || [];
+    if(!list.length){ injStatus(`unavailable — no entries`); return; }
     const out = {};
     list.forEach(t=>{
-      const ab = canon(t.abbreviation || (t.team && (t.team.abbreviation||t.team.$ref||t.team)) || t.teamAbbreviation || "");
-      const rowsSrc = t.injuries || t.athletes || t.items || [];
-      const rows = rowsSrc.map(i=>{
-        const nm = (i.athlete && (i.athlete.displayName||i.athlete.fullName)) || i.displayName || i.fullName || "";
+      // top-level entries are keyed by displayName ("Arizona Cardinals"), not an abbreviation
+      const ab = fromFullName(t.displayName) || canon(t.abbreviation||"");
+      if(!ab || !TEAMS[ab]) return;
+      const rows = (t.injuries||[]).map(i=>{
+        const nm = (i.athlete && (i.athlete.displayName||i.athlete.fullName)) || "";
         const st = i.status || (i.type && (i.type.description||i.type.abbreviation)) || "";
-        const d = (i.details && (i.details.type||i.details.detail||i.details.location)) || i.shortComment || i.longComment || "";
-        return [nm, (st||d) && `(${[st,d].filter(Boolean).join(", ")})`].filter(Boolean).join(" ");
+        // fall back to shortComment, which carries name/status/detail as one sentence when the above are blank
+        if(!nm && i.shortComment) return i.shortComment.slice(0,140);
+        return [nm, st && `(${st})`].filter(Boolean).join(" ");
       }).filter(Boolean);
-      if(TEAMS[ab] && rows.length) out[ab] = rows.slice(0,6).join("; ");
+      if(rows.length) out[ab] = rows.slice(0,6).join("; ");
     });
-    if(Object.keys(out).length){
-      state.autoInj = out; state.autoInjAt = new Date().toISOString(); save(); render();
-      injStatus(`${Object.keys(out).length} teams · ${new Date().toLocaleTimeString()}`);
+    if(!Object.keys(out).length){
+      injStatus(`parsed 0 of ${list.length} teams. Sample keys: ${Object.keys(list[0]).join(",")}, first injury keys: ${Object.keys((list[0].injuries||[])[0]||{}).join(",")}`);
       return;
     }
-    // nothing parsed: show the real shape of one entry so we can fix the field names
-    const sample = JSON.stringify(list[0]).slice(0,500);
-    injStatus(`got ${list.length} entries but couldn't read them. Sample: ${sample}`);
+    state.autoInj = out; state.autoInjAt = new Date().toISOString(); save(); render();
+    injStatus(`${Object.keys(out).length} teams · ${new Date().toLocaleTimeString()}`);
   }catch(e){ injStatus("unavailable — "+e.message); }
 }
 function injStatus(t){ const el = document.getElementById("injStatus"); if(el) el.textContent = t; }

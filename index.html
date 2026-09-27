@@ -630,63 +630,40 @@ async function fetchBooks(){
 function oddsStatus(t){ const el = document.getElementById("oddsStatus"); if(el) el.textContent = t; }
 
 /* ============ ESPN injuries ============ */
-function injRowText(i){
-  const nm = (i.athlete && i.athlete.displayName) || i.displayName || "";
-  const st = i.status || (i.type && (i.type.description||i.type.abbreviation)) || "";
-  const d = (i.details && (i.details.type||i.details.detail||i.details.location)) || i.shortComment || "";
-  return [nm, (st||d) && `(${[st,d].filter(Boolean).join(", ")})`].filter(Boolean).join(" ");
-}
 async function fetchInjuries(){
   injStatus("fetching…");
-  const urls = [
-    "https://site.api.espn.com/apis/site/v2/sports/football/nfl/injuries",
-    "https://site.api.espn.com/apis/site/v2/sports/football/nfl/news/injuries",
-    "https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams"
-  ];
-  const errs = [];
-  for(const url of urls){
-    try{
-      const r = await fetch(url,{cache:"no-store"});
-      const raw = await r.text();
-      if(!r.ok){ errs.push(`HTTP ${r.status} ${url} :: ${raw.slice(0,120)}`); continue; }
-      let j; try{ j = JSON.parse(raw); }catch(e){ errs.push(`bad JSON ${url} :: ${raw.slice(0,120)}`); continue; }
-
-      if(url.endsWith("/teams")){
-        // fan out: per-team injuries endpoint, confirmed to exist
-        const teams = ((j.sports||[])[0]?.leagues||[])[0]?.teams || [];
-        const out = {}; let ok = 0;
-        for(const t of teams.slice(0,32)){
-          const ab = canon(t.team.abbreviation);
-          if(!TEAMS[ab]) continue;
-          try{
-            const rr = await fetch(`https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams/${t.team.abbreviation}/injuries`,{cache:"no-store"});
-            const rj = await rr.json();
-            const rows = (rj.injuries||rj.items||[]).map(injRowText).filter(Boolean);
-            if(rows.length){ out[ab] = rows.slice(0,6).join("; "); ok++; }
-          }catch(e){}
-        }
-        if(!ok){ errs.push(`per-team fetch returned nothing (tried ${teams.length} teams)`); continue; }
-        state.autoInj = out; state.autoInjAt = new Date().toISOString(); save(); render();
-        injStatus(`${ok} teams (per-team feed) · ${new Date().toLocaleTimeString()}`);
-        return;
-      }
-
-      const list = j.injuries || j.items || [];
-      if(!Array.isArray(list) || !list.length){ errs.push(`empty list ${url} :: keys=${Object.keys(j).join(",")}`); continue; }
-      const out = {};
-      list.forEach(t=>{
-        const ab = canon(t.abbreviation || (t.team && (t.team.abbreviation||t.team)) || "");
-        if(!TEAMS[ab]) return;
-        const rows = (t.injuries||[]).map(injRowText).filter(Boolean);
-        if(rows.length) out[ab] = rows.slice(0,6).join("; ");
-      });
-      if(!Object.keys(out).length){ errs.push(`no team rows parsed ${url}`); continue; }
+  try{
+    const r = await fetch("https://site.api.espn.com/apis/site/v2/sports/football/nfl/injuries",{cache:"no-store"});
+    const raw = await r.text();
+    if(!r.ok){ injStatus(`unavailable — HTTP ${r.status}`); return; }
+    const j = JSON.parse(raw);
+    const list = j.injuries || j.items || (Array.isArray(j)?j:[]);
+    if(!Array.isArray(list) || !list.length){
+      injStatus(`unavailable — top-level keys: ${Object.keys(j).join(", ")}`);
+      return;
+    }
+    // try several plausible shapes per team entry
+    const out = {};
+    list.forEach(t=>{
+      const ab = canon(t.abbreviation || (t.team && (t.team.abbreviation||t.team.$ref||t.team)) || t.teamAbbreviation || "");
+      const rowsSrc = t.injuries || t.athletes || t.items || [];
+      const rows = rowsSrc.map(i=>{
+        const nm = (i.athlete && (i.athlete.displayName||i.athlete.fullName)) || i.displayName || i.fullName || "";
+        const st = i.status || (i.type && (i.type.description||i.type.abbreviation)) || "";
+        const d = (i.details && (i.details.type||i.details.detail||i.details.location)) || i.shortComment || i.longComment || "";
+        return [nm, (st||d) && `(${[st,d].filter(Boolean).join(", ")})`].filter(Boolean).join(" ");
+      }).filter(Boolean);
+      if(TEAMS[ab] && rows.length) out[ab] = rows.slice(0,6).join("; ");
+    });
+    if(Object.keys(out).length){
       state.autoInj = out; state.autoInjAt = new Date().toISOString(); save(); render();
       injStatus(`${Object.keys(out).length} teams · ${new Date().toLocaleTimeString()}`);
       return;
-    }catch(e){ errs.push(e.message + " :: " + url); }
-  }
-  injStatus("unavailable — "+errs.join(" | "));
+    }
+    // nothing parsed: show the real shape of one entry so we can fix the field names
+    const sample = JSON.stringify(list[0]).slice(0,500);
+    injStatus(`got ${list.length} entries but couldn't read them. Sample: ${sample}`);
+  }catch(e){ injStatus("unavailable — "+e.message); }
 }
 function injStatus(t){ const el = document.getElementById("injStatus"); if(el) el.textContent = t; }
 
